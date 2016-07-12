@@ -11,8 +11,8 @@ data Boid = Boid{ident :: Id, pos :: (Double, Double), vel :: (Double, Double)}
 width = 700
 height = 500
 boidSize = 3
-numBoids = 100
-maxSpeed = 5
+numBoids = 1000
+maxSpeed = 10
 
 mainSF :: [Boid] -> SF () (IO ())
 mainSF boids = loopPre boids coreSF
@@ -26,8 +26,7 @@ mainSF boids = loopPre boids coreSF
 move :: SF [Boid] [Boid]
 move  = proc boids -> do
   let rule1Boids = map (rule1 boids) boids
-      rule2Boids = map (rule2 boids) rule1Boids
-      nextBoids = forwardBoids rule2Boids
+  let nextBoids = forwardBoids rule1Boids
   returnA -< nextBoids
 
 forwardBoids :: [Boid] -> [Boid]
@@ -42,7 +41,7 @@ forwardBoids (b@Boid{pos=(x,y), vel=(vx,vy)}:bs) =
 
   in b{pos=(x+newVx2, y+newVy2)}: forwardBoids bs
 
--- 群れの中心にあつまる
+
 rule1 :: [Boid] -> Boid -> Boid
 rule1 boids boid@(Boid{ident=ident,pos=(x, y), vel=(vx,vy)}) =
   let (sumX, sumY) = sumBoids boids
@@ -54,20 +53,6 @@ rule1 boids boid@(Boid{ident=ident,pos=(x, y), vel=(vx,vy)}) =
     sumBoids (Boid{ident=ident2, pos=(x, y)}:bs) =
       let (sx, sy) = sumBoids bs
       in if ident==ident2 then (sx, sy) else (x+sx, y+sy)
-
-rule2 :: [Boid] -> Boid -> Boid
-rule2 boids boid@(Boid{ident=ident, pos=(x,y), vel=(vx,vy)}) =
-  let (newVx, newVy) = foldl updateVel (vx, vy) boids
-  in boid{vel=(newVx, newVy)}
-  where
-    updateVel :: (Double, Double) -> Boid -> (Double, Double)
-    updateVel (nowVx, nowVy) b2@Boid{pos=(x2, y2)}  =
-      let d = distance boid b2
-      in if d < 5 then (nowVx-(x2-x), nowVy-(y2-y)) else (nowVx, nowVy)
-
-    distance :: Boid -> Boid -> Double
-    distance Boid{pos=(x1, y1)} Boid{pos=(x2, y2)} =
-      sqrt ((x1-x2)**2 + (y1-y2)**2)
 
 draw :: [Boid] -> IO ()
 draw boids = do
