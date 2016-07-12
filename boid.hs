@@ -13,9 +13,23 @@ boidSize = 5
 numBoids = 100
 
 mainSF :: [Boid] -> SF () (IO ())
-mainSF boids = proc _ -> do
-  out <- arr draw -< boids
-  returnA -< out
+mainSF boids = loopPre boids coreSF
+  where
+    coreSF :: SF ((), [Boid]) (IO(), [Boid])
+    coreSF = proc (_, boids) -> do
+      nextBoids <- move -< boids
+      drawed   <- arr draw -< boids
+      returnA -< (drawed, nextBoids)
+
+move :: SF [Boid] [Boid]
+move  = proc boids -> do
+  let nextBoids = forwardBoids boids
+  returnA -< nextBoids
+
+forwardBoids :: [Boid] -> [Boid]
+forwardBoids [] = []
+forwardBoids (b@Boid{pos=(x,y), vel=(vx,vy)}:bs) =
+  b{pos=(x+vx, y+vy)}: forwardBoids bs
 
 draw :: [Boid] -> IO ()
 draw boids = do
@@ -59,7 +73,7 @@ randomBoids n = do
   let (x,g2) = randomR (0, width) g1
   let (y,_) = randomR (0, height) g2
   rest <- randomBoids (n-1)
-  return $ (Boid (x, y) (0, 0)) : rest
+  return $ (Boid (x, y) (1, 1)) : rest
 
 main :: IO ()
 main = do
