@@ -12,28 +12,27 @@ width = 700
 height = 500
 boidSize = 3
 numBoids = 100
-maxSpeed = 5
+maxSpeed = 3
 
 mainSF :: [Boid] -> SF () (IO ())
 mainSF boids = loopPre boids coreSF
   where
     coreSF :: SF ((), [Boid]) (IO(), [Boid])
     coreSF = proc (_, boids) -> do
-      nextBoids <- move -< boids
+      nextBoids <- arr move -< boids
       drawed   <- arr draw -< boids
       returnA -< (drawed, nextBoids)
 
-move :: SF [Boid] [Boid]
-move  = proc boids -> do
-  let rule1Boids = map (rule1 boids) boids
-      rule2Boids = map (rule2 boids) rule1Boids
-      nextBoids = forwardBoids rule2Boids
-  returnA -< nextBoids
+move :: [Boid] -> [Boid]
+move  boids= let
+    ruledBoids = map (rule3 boids . rule2 boids . rule1 boids) boids
+    nextBoids = forwardBoids ruledBoids
+  in nextBoids
 
 forwardBoids :: [Boid] -> [Boid]
 forwardBoids [] = []
 forwardBoids (b@Boid{pos=(x,y), vel=(vx,vy)}:bs) =
-  let speed = sqrt (vx * vx + vy * vy)
+  let speed = sqrt (vx ** 2 + vy ** 2)
       (newVx, newVy) = if (speed >= maxSpeed)
         then let r = maxSpeed / speed in (vx * r, vy * r)
         else (vx, vy)
@@ -47,14 +46,15 @@ rule1 :: [Boid] -> Boid -> Boid
 rule1 boids boid@(Boid{ident=ident,pos=(x, y), vel=(vx,vy)}) =
   let (sumX, sumY) = sumBoids boids
       (cx, cy) = (sumX / fromIntegral (length boids - 1), sumY / fromIntegral(length boids - 1))
-  in boid{vel=(vx+ (cx-x)/50, vy+ (cy-y)/50)}
+  in boid{vel=(vx+ (cx-x)/100, vy+ (cy-y)/100)}
   where
-    sumBoids :: [Boid] -> (Double, Double) -- TODO 自分以外のsumにしないといけない
+    sumBoids :: [Boid] -> (Double, Double)
     sumBoids [] = (0, 0)
     sumBoids (Boid{ident=ident2, pos=(x, y)}:bs) =
       let (sx, sy) = sumBoids bs
       in if ident==ident2 then (sx, sy) else (x+sx, y+sy)
 
+-- 近いと離れる
 rule2 :: [Boid] -> Boid -> Boid
 rule2 boids boid@(Boid{ident=ident, pos=(x,y), vel=(vx,vy)}) =
   let (newVx, newVy) = foldl updateVel (vx, vy) boids
@@ -68,6 +68,20 @@ rule2 boids boid@(Boid{ident=ident, pos=(x,y), vel=(vx,vy)}) =
     distance :: Boid -> Boid -> Double
     distance Boid{pos=(x1, y1)} Boid{pos=(x2, y2)} =
       sqrt ((x1-x2)**2 + (y1-y2)**2)
+
+-- 同じ向きに合わせる（？）
+rule3 :: [Boid] -> Boid -> Boid
+rule3 boids boid@(Boid{ident=ident,pos=(x,y),vel=(vx,vy)}) =
+  let (sumVx, sumVy) = sumBoidVels boids
+      size = fromIntegral (length boids - 1)
+      (avgVx, avgVy) = (sumVx / size, sumVy / size)
+  in boid{vel=(vx+(avgVx-vx)/8, vy+(avgVy-vy)/8)}
+  where
+    sumBoidVels :: [Boid] -> (Double, Double)
+    sumBoidVels [] = (0, 0)
+    sumBoidVels (Boid{ident=ident2, vel=(vx, vy)}:bs) =
+      let (svx, svy) = sumBoidVels bs
+      in if ident==ident2 then (svx, svy) else (vx+svx, vy+svy)
 
 draw :: [Boid] -> IO ()
 draw boids = do
