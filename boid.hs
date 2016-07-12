@@ -61,9 +61,9 @@ rule2 boids boid@(Boid{ident=ident, pos=(x,y), vel=(vx,vy)}) =
   in boid{vel=(newVx, newVy)}
   where
     updateVel :: (Double, Double) -> Boid -> (Double, Double)
-    updateVel (nowVx, nowVy) b2@Boid{pos=(x2, y2)}  =
+    updateVel (nowVx, nowVy) b2@Boid{ident=ident2, pos=(x2, y2)}  =
       let d = distance boid b2
-      in if d < 5 then (nowVx-(x2-x), nowVy-(y2-y)) else (nowVx, nowVy)
+      in if ident /= ident2 && d < 5 then (nowVx-(x2-x), nowVy-(y2-y)) else (nowVx, nowVy)
 
     distance :: Boid -> Boid -> Double
     distance Boid{pos=(x1, y1)} Boid{pos=(x2, y2)} =
