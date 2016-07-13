@@ -1,5 +1,6 @@
 {-# LANGUAGE Arrows #-}
 
+import           Control.Concurrent
 import           Control.Monad
 import           FRP.Yampa
 import           Graphics.UI.GLUT
@@ -9,10 +10,10 @@ newtype Id = Id Int deriving Eq
 data Boid = Boid{ident :: Id, pos :: (Double, Double), vel :: (Double, Double)}
 
 width = 700
-height = 500
+height = 700
 boidSize = 3
 numBoids = 100
-maxSpeed = 3
+maxSpeed = 7
 
 mainSF :: [Boid] -> SF () (IO ())
 mainSF boids = loopPre boids coreSF
@@ -24,28 +25,51 @@ mainSF boids = loopPre boids coreSF
       returnA -< (drawed, nextBoids)
 
 move :: [Boid] -> [Boid]
-move  boids= let
-    ruledBoids = map (rule3 boids . rule2 boids . rule1 boids) boids
-    nextBoids = forwardBoids ruledBoids
-  in nextBoids
+-- move boids = map (forwardBoid . rule3 boids . rule2 boids . rule1 boids) boids
+move [] = []
+move (b:bs) = _move [] b bs
+  where
+    transfer :: [Boid] -> Boid -> Boid
+    transfer boids = (forwardBoid .  rule3 boids . rule2 boids . rule1 boids)
 
-forwardBoids :: [Boid] -> [Boid]
-forwardBoids [] = []
-forwardBoids (b@Boid{pos=(x,y), vel=(vx,vy)}:bs) =
+    _move :: [Boid] -> Boid -> [Boid] -> [Boid]
+    _move moved b [] = (transfer moved b): moved
+    _move moved b (next:nonMoved) =
+      let boids = moved ++ (next:nonMoved)
+          newB =  transfer boids b
+      in _move (newB:moved) next nonMoved
+
+forwardBoid :: Boid -> Boid
+forwardBoid b@Boid{pos=(x,y), vel=(vx,vy)} =
   let speed = sqrt (vx ** 2 + vy ** 2)
       (newVx, newVy) = if (speed >= maxSpeed)
         then let r = maxSpeed / speed in (vx * r, vy * r)
         else (vx, vy)
+      -- (newVx, newVy) = (vx, vy)
       newVx2 = if (x < 0 && newVx < 0 || x > width && newVx > 0) then -newVx else newVx
       newVy2 = if (y < 0 && newVy < 0 || y > height && newVy > 0) then -newVy else newVy
 
-  in b{pos=(x+newVx2, y+newVy2)}: forwardBoids bs
+  in b{pos=(x+newVx2, y+newVy2), vel=(newVx2, newVy2)}
+
+-- forwardBoids :: [Boid] -> [Boid]
+-- forwardBoids [] = []
+-- forwardBoids (b@Boid{pos=(x,y), vel=(vx,vy)}:bs) =
+--   let speed = sqrt (vx ** 2 + vy ** 2)
+--       (newVx, newVy) = if (speed >= maxSpeed)
+--         then let r = maxSpeed / speed in (vx * r, vy * r)
+--         else (vx, vy)
+--       -- (newVx, newVy) = (vx, vy)
+--       newVx2 = if (x < 0 && newVx < 0 || x > width && newVx > 0) then -newVx else newVx
+--       newVy2 = if (y < 0 && newVy < 0 || y > height && newVy > 0) then -newVy else newVy
+--
+--   in b{pos=(x+newVx2, y+newVy2)}: forwardBoids bs
 
 -- 群れの中心にあつまる
 rule1 :: [Boid] -> Boid -> Boid
 rule1 boids boid@(Boid{ident=ident,pos=(x, y), vel=(vx,vy)}) =
   let (sumX, sumY) = sumBoids boids
-      (cx, cy) = (sumX / fromIntegral (length boids - 1), sumY / fromIntegral(length boids - 1))
+      size = fromIntegral (length boids)
+      (cx, cy) = (sumX / size, sumY / size)
   in boid{vel=(vx+ (cx-x)/100, vy+ (cy-y)/100)}
   where
     sumBoids :: [Boid] -> (Double, Double)
@@ -73,7 +97,7 @@ rule2 boids boid@(Boid{ident=ident, pos=(x,y), vel=(vx,vy)}) =
 rule3 :: [Boid] -> Boid -> Boid
 rule3 boids boid@(Boid{ident=ident,pos=(x,y),vel=(vx,vy)}) =
   let (sumVx, sumVy) = sumBoidVels boids
-      size = fromIntegral (length boids - 1)
+      size = fromIntegral $ length boids
       (avgVx, avgVy) = (sumVx / size, sumVy / size)
   in boid{vel=(vx+(avgVx-vx)/8, vy+(avgVy-vy)/8)}
   where
@@ -82,6 +106,8 @@ rule3 boids boid@(Boid{ident=ident,pos=(x,y),vel=(vx,vy)}) =
     sumBoidVels (Boid{ident=ident2, vel=(vx, vy)}:bs) =
       let (svx, svy) = sumBoidVels bs
       in if ident==ident2 then (svx, svy) else (vx+svx, vy+svy)
+
+    -- sumBoidVels = foldl (\(svx, svy) Boid{vel=(vx, vy)} -> (vx+svx, vy+svy)) (0, 0)
 
 draw :: [Boid] -> IO ()
 draw boids = do
@@ -103,7 +129,8 @@ reshape size = do
 
 idle :: ReactHandle () (IO ()) -> IO ()
 idle rh = do
-  react rh (0.1, Just ())
+  -- threadDelay 10000
+  react rh (0.06, Just ())
   return ()
 
 initGL :: IO ()
@@ -125,7 +152,7 @@ randomBoids n = do
   let (x,g2) = randomR (0, width) g1
   let (y,_) = randomR (0, height) g2
   rest <- randomBoids (n-1)
-  return $ (Boid (Id n) (x, y) (0, 0)) : rest
+  return $ (Boid (Id n) (x, y) (1, 1)) : rest
 
 main :: IO ()
 main = do
