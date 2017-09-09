@@ -1,5 +1,8 @@
 {-# LANGUAGE Arrows #-}
 
+module Main where
+
+
 import           Control.Concurrent
 import           Control.Monad
 import           FRP.Yampa
@@ -162,3 +165,4 @@ main = do
   reshapeCallback $= Just reshape
   idleCallback    $= Just (idle rh)
   mainLoop
+
