@@ -7,11 +7,11 @@ Boid is a program which simulates the flocking behaviour of birds.
 Boid is based on simple 3 rules as follows.
 
 * Separation
- - steer to avoid crowding local flockmates
+  - steer to avoid crowding local flockmates
 * Alignment
- - steer towards the average heading of local flockmates
+  - steer towards the average heading of local flockmates
 * Cohesion
- - steer to move toward the average position (center of mass) of local flockmates
+  - steer to move toward the average position (center of mass) of local flockmates
 
  (from: https://www.wikiwand.com/en/Boids)
 
