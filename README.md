@@ -1,4 +1,4 @@
-# Boid simulation by Yamp in Haskell
+# Boid simulation by Yampa in Haskell
 
 ## How to run
 
