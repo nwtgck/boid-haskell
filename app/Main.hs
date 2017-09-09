@@ -12,8 +12,8 @@ import           System.Random
 newtype Id = Id Int deriving Eq
 data Boid = Boid{ident :: Id, pos :: (Double, Double), vel :: (Double, Double)}
 
-width = 700
-height = 700
+width    = 700
+height   = 700
 boidSize = 3
 numBoids = 100
 maxSpeed = 7
@@ -24,22 +24,22 @@ mainSF boids = loopPre boids coreSF
     coreSF :: SF ((), [Boid]) (IO(), [Boid])
     coreSF = proc (_, boids) -> do
       nextBoids <- arr move -< boids
-      drawed   <- arr draw -< boids
+      drawed    <- arr draw -< boids
       returnA -< (drawed, nextBoids)
 
 move :: [Boid] -> [Boid]
 -- move boids = map (forwardBoid . rule3 boids . rule2 boids . rule1 boids) boids
-move [] = []
+move []     = []
 move (b:bs) = _move [] b bs
   where
     transfer :: [Boid] -> Boid -> Boid
     transfer boids = (forwardBoid .  rule3 boids . rule2 boids . rule1 boids)
 
     _move :: [Boid] -> Boid -> [Boid] -> [Boid]
-    _move moved b [] = (transfer moved b): moved
+    _move moved b []              = (transfer moved b): moved
     _move moved b (next:nonMoved) =
       let boids = moved ++ (next:nonMoved)
-          newB =  transfer boids b
+          newB  = transfer boids b
       in _move (newB:moved) next nonMoved
 
 forwardBoid :: Boid -> Boid
@@ -49,7 +49,7 @@ forwardBoid b@Boid{pos=(x,y), vel=(vx,vy)} =
         then let r = maxSpeed / speed in (vx * r, vy * r)
         else (vx, vy)
       -- (newVx, newVy) = (vx, vy)
-      newVx2 = if (x < 0 && newVx < 0 || x > width && newVx > 0) then -newVx else newVx
+      newVx2 = if (x < 0 && newVx < 0 || x > width && newVx > 0)  then -newVx else newVx
       newVy2 = if (y < 0 && newVy < 0 || y > height && newVy > 0) then -newVy else newVy
 
   in b{pos=(x+newVx2, y+newVy2), vel=(newVx2, newVy2)}
@@ -71,8 +71,8 @@ forwardBoid b@Boid{pos=(x,y), vel=(vx,vy)} =
 rule1 :: [Boid] -> Boid -> Boid
 rule1 boids boid@(Boid{ident=ident,pos=(x, y), vel=(vx,vy)}) =
   let (sumX, sumY) = sumBoids boids
-      size = fromIntegral (length boids)
-      (cx, cy) = (sumX / size, sumY / size)
+      size         = fromIntegral (length boids)
+      (cx, cy)     = (sumX / size, sumY / size)
   in boid{vel=(vx+ (cx-x)/100, vy+ (cy-y)/100)}
   where
     sumBoids :: [Boid] -> (Double, Double)
@@ -100,7 +100,7 @@ rule2 boids boid@(Boid{ident=ident, pos=(x,y), vel=(vx,vy)}) =
 rule3 :: [Boid] -> Boid -> Boid
 rule3 boids boid@(Boid{ident=ident,pos=(x,y),vel=(vx,vy)}) =
   let (sumVx, sumVy) = sumBoidVels boids
-      size = fromIntegral $ length boids
+      size           = fromIntegral $ length boids
       (avgVx, avgVy) = (sumVx / size, sumVy / size)
   in boid{vel=(vx+(avgVx-vx)/8, vy+(avgVy-vy)/8)}
   where
@@ -139,11 +139,11 @@ idle rh = do
 initGL :: IO ()
 initGL = do
   let scale = 1
-  initialWindowSize $= Size (scale * truncate width) (scale * truncate height)
+  initialWindowSize  $= Size (scale * truncate width) (scale * truncate height)
   getArgsAndInitialize
   createWindow "Boid"
   initialDisplayMode $= [RGBAMode]
-  clearColor $= Color4 0 0 0 0
+  clearColor         $= Color4 0 0 0 0
 
 -- initBoids :: [Boid]
 -- initBoids = replicate numBoids (Boid (100, 100) (0, 0))
@@ -153,14 +153,14 @@ randomBoids 0 = return []
 randomBoids n = do
   g1 <- newStdGen
   let (x,g2) = randomR (0, width) g1
-  let (y,_) = randomR (0, height) g2
-  rest <- randomBoids (n-1)
+  let (y,_)  = randomR (0, height) g2
+  rest       <- randomBoids (n-1)
   return $ (Boid (Id n) (x, y) (1, 1)) : rest
 
 main :: IO ()
 main = do
-  initBoids <- randomBoids numBoids
-  rh <- reactInit (initGL) (\_ _ b -> b >> return False) (mainSF initBoids)
+  initBoids       <- randomBoids numBoids
+  rh              <- reactInit (initGL) (\_ _ b -> b >> return False) (mainSF initBoids)
   displayCallback $= return ()
   reshapeCallback $= Just reshape
   idleCallback    $= Just (idle rh)
